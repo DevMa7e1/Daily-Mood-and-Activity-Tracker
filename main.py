@@ -3,6 +3,7 @@ import tkinter.font as tkFont
 import calendar, datetime
 import random
 import windows
+from record import initialize
 
 root = ttk.App(title='DM&AT')
 root.theme_use('bootstrap-dark')
@@ -10,6 +11,7 @@ introduction = ttk.Frame(root)
 introduction.grid(row=0, column=0, pady=(0, 10), padx=0)
 ttk.Label(introduction, text='Hello!', font=tkFont.Font(family="Arial", size=25), justify='left', anchor="w").pack(anchor='w')
 ttk.Label(introduction, text='Would you like to...').pack(anchor='w')
+initialize()
 
 daycount = calendar.monthrange(datetime.datetime.now().year, datetime.datetime.now().month)[1]
 display = ttk.Frame(root)
