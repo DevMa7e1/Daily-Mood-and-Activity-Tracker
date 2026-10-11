@@ -58,6 +58,8 @@ def modify(day: Day):
     string += str(day.date.timestamp()) + ':'
     string += str(day.rating)+chr(23)
     string += day.word+chr(23)
+    for i in day.events.keys():
+            string += i+chr(3)+str(day.events[i].timestamp())+chr(23)
 
     buffer += string + '\n'
     f.write(buffer)

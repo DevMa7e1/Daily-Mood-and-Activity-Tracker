@@ -6,3 +6,11 @@ class Day:
         self.rating = rating
         self.word = word
         self.events = events
+
+class Global:
+    def __init__(self, value):
+        self.value = value
+    def get(self):
+        return self.value
+    def set(self, value):
+        self.value = value
