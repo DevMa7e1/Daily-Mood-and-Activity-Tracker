@@ -1,12 +1,12 @@
 import ttkbootstrap as ttk
 from tkinter import HORIZONTAL, END, Variable
 import tkinter.font as tkFont
-from time import sleep
 from record import write_down, read_back, modify, read_relevant_events
 from datetime import datetime
 from classes import Day, Global
 from math import floor
 from tkcalendar import Calendar
+from tk_classes import EventList, MessageBox
 
 def addmood(todaysbutton):
     window = ttk.Toplevel(title="What's today's mood?")
@@ -67,7 +67,7 @@ def writedownmood(rating: ttk.Scale, word: ttk.Entry, window: ttk.Toplevel, toda
     elif floor(rating.get()) > 5:
         todaysbutton.config(bootstyle='success')
     window.destroy()
-    show_message('Done', 'Information recorded!')
+    MessageBox().show_message('Done', 'Information recorded!')
 
 def addactivity():
     window = ttk.Toplevel(title="Manage activities/events")
@@ -114,47 +114,24 @@ def addactivity():
     dates = []
     for i in ev.get():
         dates.append(i[0])
-    events = Variable(window, value=events)
-    dates = Global(dates)
 
-    ttk.Button(add_frame, text='Write down', bootstyle='danger outline', command=\
-    lambda: writedownevent(name, t1, t2, cal, events, dates, ev)).pack(anchor='e', padx=5, pady=5)
     add_frame.grid(row=0, column=0, padx=4, pady=4)
 
     remove_frame = ttk.Frame(window, relief='raised', padding=2, borderwidth=1)
+    remove_frame.grid_columnconfigure(0, weight=1)
     search = ttk.Frame(remove_frame)
     ttk.Label(search, text='Search: ').grid(row=0, column=0, padx=(4, 0), pady=(4, 0))
     sv = Variable(window)
     ttk.Entry(search, bootstyle='warning', textvariable=sv).grid(row=0, column=1, padx=(0, 4), pady=(4, 0))
-    search.pack(pady=(0, 4))
-
-    sv.trace_add('write', lambda a, b, c: search_list(ev, events, sv.get(), dates))
-    listbox = ttk.Listbox(remove_frame, listvariable=events).pack(expand=True, fill='both', padx=4, pady=4)
-    ttk.Button(remove_frame, bootstyle='danger outline', text="Remove",\
-    command= lambda: remove_event(listbox, events, dates, ev)).pack(fill='x')
+    search.grid(pady=(0, 4), row=0, column=0)
+    listbox = EventList(remove_frame, events, dates, ev)
+    sv.trace_add('write', lambda a, b, c: search_list(ev, sv.get(), listbox))
+    ttk.Button(add_frame, text='Write down', bootstyle='danger outline', command=\
+    lambda: writedownevent(name, t1, t2, cal, listbox, ev)).pack(anchor='e', padx=5, pady=5)
+    listbox.frame.grid(row=1, column=0, sticky='nsew')
     remove_frame.grid(row=0, column=1, sticky='nsew', padx=4, pady=4)
 
-def remove_event(listbox: ttk.Listbox, events: Variable, dates: Global, ev: Global):
-    if len(listbox.curselection()) > 0:
-        if ask("Wait", "Proceed with removing event(s)?"):
-            eve: list = list(events.get())
-            dat: list = list(dates.get())
-            ev2: list = list(ev.get())
-            for i in listbox.curselection():
-                day: Day = read_back(dat[i]) #type: ignore
-                day.events.pop(eve[i])
-                modify(day)
-                dat.pop(i)
-                eve.pop(i)
-            events.set(eve)
-            dates.set(dat)
-            ev.set(ev2)
-            show_message("Done", "Events/Activities removed.")
-        else:
-            show_message("Aborted", "Removal canceled.")
-        
-
-def search_list(ev: Global, events: Variable, text: str, dates: Global):
+def search_list(ev: Global, text: str, listbox: EventList):
     ev2 = []
     dates2 = []
     for i in ev.get():
@@ -166,11 +143,12 @@ def search_list(ev: Global, events: Variable, text: str, dates: Global):
         dates2.append(i[0])
     if len(events2) > 1:
         events2 = events2[1:]
-    events.set(events2)
-    dates.set(dates2)
+    listbox.events = events2
+    listbox.dates = dates2
+    listbox.update()
     
 
-def writedownevent(name: ttk.Entry, time1: ttk.Spinbox, time2: ttk.Spinbox, calendar: Calendar, eventsV: Variable, dates: Global, ev: Global):
+def writedownevent(name: ttk.Entry, time1: ttk.Spinbox, time2: ttk.Spinbox, calendar: Calendar, listbox: EventList, ev: Global):
     n = name.get()
     hour = int(time1.get())
     minute = int(time2.get())
@@ -189,13 +167,14 @@ def writedownevent(name: ttk.Entry, time1: ttk.Spinbox, time2: ttk.Spinbox, cale
         dates2 = []
         for i in ev.get():
             dates2.append(i[0])
-        eventsV.set(events2)
-        dates.set(dates2)
+        listbox.events = events2
+        listbox.dates = dates2
+        listbox.update()
     else:
         day: Day = read_back(date) #type: ignore
         events: dict = day.events
         if n in events.keys():
-            if ask("Warning", "Writing down an activity/event with the same name\n\
+            if MessageBox().ask("Warning", "Writing down an activity/event with the same name\n\
 as another one within the same day\nwill overwrite the first activity/event. Continue?"):
                 events[n] = date
                 modify(Day(date, day.rating, day.word, events))
@@ -213,8 +192,9 @@ as another one within the same day\nwill overwrite the first activity/event. Con
                 dates2 = []
                 for i in ev.get():
                     dates2.append(i[0])
-                eventsV.set(events2)
-                dates.set(dates2)
+                listbox.events = events2
+                listbox.dates = dates2
+                listbox.update()
             else:
                 aborted = True
         else:
@@ -231,40 +211,11 @@ as another one within the same day\nwill overwrite the first activity/event. Con
             dates2 = []
             for i in ev.get():
                 dates2.append(i[0])
-            eventsV.set(events2)
-            dates.set(dates2)
+            listbox.events = events2
+            listbox.dates = dates2
+            listbox.update()
     if not aborted:
-        show_message("Done", "Information recorded!")
+        MessageBox().show_message("Done", "Information recorded!")
     else:
-        show_message("Aborted", "Information discarded.")
-    
-def show_message(title, text):
-    msg = ttk.Toplevel(title=title)
-    ttk.Label(msg, text=text, font=tkFont.Font(family="Arial", size=12)).pack(padx=3, pady=3)
-    msg.update()
-    sleep(1)
-    msg.destroy()
-
-def ask(title, text):
-    msg = ttk.Toplevel(title=title)
-    frame = ttk.Frame(msg)
-    ttk.Label(frame, text=text, font=tkFont.Font(family="Arial", size=12)).grid(row=0, column=0)
-    ttk.Label(frame, image = "::tk::icons::warning").grid(row=0, column=1)
-    frame.pack(padx=3, pady=3)
-    frame2 = ttk.Frame(msg)
-    yes = ttk.Button(frame2, bootstyle='success', command=lambda: yes.destroy(), text="Yes").grid(row=0, column=0, padx=5)
-    no = ttk.Button(frame2, bootstyle='danger', command=lambda: no.destroy(), text="No").grid(row=0, column=1)
-    frame2.pack(anchor='e', pady=3, padx=3)
-    while(yes.winfo_exists() and no.winfo_exists() and msg.winfo_exists()):
-        msg.update()
-    
-    if not msg.winfo_exists():
-        return False
-    
-    if yes.winfo_exists():
-        msg.destroy()
-        return False
-    else:
-        msg.destroy()
-        return True
+        MessageBox().show_message("Aborted", "Information discarded.")
     
