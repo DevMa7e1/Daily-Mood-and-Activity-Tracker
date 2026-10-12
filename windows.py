@@ -1,7 +1,7 @@
 import ttkbootstrap as ttk
 from tkinter import HORIZONTAL, END, Variable
 import tkinter.font as tkFont
-from record import write_down, read_back, modify, read_relevant_events
+from record import write_down, read_back, modify, read_relevant_events, read_all_events
 from datetime import datetime
 from classes import Day, Global
 from math import floor
@@ -123,12 +123,23 @@ def addactivity():
     ttk.Label(search, text='Search: ').grid(row=0, column=0, padx=(4, 0), pady=(4, 0))
     sv = Variable(window)
     ttk.Entry(search, bootstyle='warning', textvariable=sv).grid(row=0, column=1, padx=(0, 4), pady=(4, 0))
-    search.grid(pady=(0, 4), row=0, column=0)
-    listbox = EventList(remove_frame, events, dates, ev)
+    search.grid(pady=(0, 4), row=0, column=0, sticky='w')
+    canvas = ttk.Canvas(remove_frame, width=350, height=335)
+    
+    scrollbar = ttk.Scrollbar(remove_frame, orient="vertical", command=canvas.yview)
+    scrollbar.grid(row = 1, column = 1, sticky='ns')
+    
+    canvas.configure(yscrollcommand=scrollbar.set)
+    listbox = EventList(canvas, events, dates, ev)
     sv.trace_add('write', lambda a, b, c: search_list(ev, sv.get(), listbox))
     ttk.Button(add_frame, text='Write down', bootstyle='danger outline', command=\
     lambda: writedownevent(name, t1, t2, cal, listbox, ev)).pack(anchor='e', padx=5, pady=5)
-    listbox.frame.grid(row=1, column=0, sticky='nsew')
+    canvas.create_window((0, 0), window=listbox.frame, anchor="n", width=350)
+    listbox.frame.bind(
+        "<Configure>",
+        lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+    )
+    canvas.grid(row=1, column=0, sticky='e')
     remove_frame.grid(row=0, column=1, sticky='nsew', padx=4, pady=4)
 
 def search_list(ev: Global, text: str, listbox: EventList):
@@ -218,4 +229,106 @@ as another one within the same day\nwill overwrite the first activity/event. Con
         MessageBox().show_message("Done", "Information recorded!")
     else:
         MessageBox().show_message("Aborted", "Information discarded.")
+
+def day_stats(date: datetime):
+    window = ttk.Toplevel(title=str(date.date()))
+
+    day: Day = read_back(date) #type: ignore
+    ttk.Label(window, text="Day stats", font=tkFont.Font(family="Arial", size=20)).grid(row=0, column=0)
+    stuff = ttk.Frame(window)
+    if type(day) == Day:
+        style = 'primary'
+        if day.rating < 5:
+            style = 'danger'
+        elif day.rating > 5:
+            style = 'success'
+        infos = ttk.Frame(stuff)
+        mood = ttk.Frame(infos)
+        mood.grid_columnconfigure(0, weight=1)
+        ttk.Meter(mood, bootstyle=style, amount_used=day.rating*10, show_text=False).grid(row=1, column=0)
+        ttk.Label(mood, text=f' {day.rating}/10', font=tkFont.Font(family="Arial", size=15)).grid(row=2, column=0)
+        mood.pack(anchor='w')
+        word = ttk.Frame(infos)
+        ttk.Label(word, text='„').grid(row=0, column=0)
+        ttk.Label(word, text=day.word, font=tkFont.Font(family="Arial", size=16, slant='italic', weight='bold')).grid(row=0, column=1)
+        ttk.Label(word, text="”").grid(row=0, column=2)
+        word.pack()
+        infos.grid(row=1, column=0, sticky='nsew', padx=4, pady=4)
+    else:
+        style = 'primary'
+        infos = ttk.Frame(stuff)
+        mood = ttk.Frame(infos)
+        mood.grid_columnconfigure(0, weight=1)
+        ttk.Meter(mood, bootstyle=style, amount_used=0, show_text=False).grid(row=1, column=0)
+        ttk.Label(mood, text=f'0/10', font=tkFont.Font(family="Arial", size=15)).grid(row=2, column=0)
+        mood.pack(anchor='w')
+        word = ttk.Frame(infos)
+        ttk.Label(word, text='No data', font=tkFont.Font(family="Arial", size=16)).grid(row=0, column=1)
+        word.pack()
+        infos.grid(row=1, column=0, sticky='nsew', padx=4, pady=4)
+
+    events = ttk.Frame(stuff)
+    canvas = ttk.Canvas(events, width=250, height=300)
+    scrollbar = ttk.Scrollbar(events, orient="vertical", command=canvas.yview)
+    scrollbar.pack(side="right", fill="y")
+    canvas.configure(yscrollcommand=scrollbar.set)
+
+    if type(day) == Day:
+        evdict = day.events
+    else:
+        evdict = {}
+    ev = []
+    for i in evdict.keys():
+        ev.append((evdict[i], i))
+    ev.sort(key=lambda e: e[0], reverse=True)
+    ev = Global(ev)
+    events2 = []
+    dates = []
+    for i in ev.get():
+        events2.append(i[1])
+        dates.append(i[0])
+    listbox = EventList(canvas, events2, dates, ev, False)
+    canvas.create_window((0, 0), window=listbox.frame, anchor="n", width=250)
+    listbox.frame.bind(
+        "<Configure>",
+        lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+    )
+    canvas.pack(expand = True, fill='both')
+    events.grid(row=1, column=1)
+    stuff.grid(row=1, column=0)
+
+
+def searchallevents():
+    window = ttk.Toplevel(title='All activities/events')
+    window.resizable(width=False, height=False)
+
+    canvas = ttk.Canvas(window, width=250, height=300)
+    scrollbar = ttk.Scrollbar(window, orient="vertical", command=canvas.yview)
+    scrollbar.pack(side="right", fill="y")
+    canvas.configure(yscrollcommand=scrollbar.set)
+    search = ttk.Frame(window)
+    sv = Variable(window)
+    ttk.Entry(search, bootstyle='primary', textvariable=sv).grid(row=0, column=0, padx=4, pady=4)
+    ttk.Button(search, text='Search').grid(row=0, column=1, padx=(0, 4))
+    search.pack()
+
+    evdict = read_all_events()
+    ev = []
+    for i in evdict.keys():
+        ev.append((evdict[i], i))
+    ev.sort(key=lambda e: e[0], reverse=True)
+    ev = Global(ev)
+    events = []
+    dates = []
+    for i in ev.get():
+        events.append(i[1])
+        dates.append(i[0])
     
+    listbox = EventList(canvas, events, dates, ev, False)
+    sv.trace_add('write', lambda a, b, c: search_list(ev, sv.get(), listbox))
+    canvas.create_window((0, 0), window=listbox.frame, anchor="n", width=250)
+    listbox.frame.bind(
+        "<Configure>",
+        lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+    )
+    canvas.pack(expand = True, fill='both')

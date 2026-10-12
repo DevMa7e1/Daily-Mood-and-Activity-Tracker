@@ -103,3 +103,18 @@ def read_relevant_events():
                     dt = datetime.fromtimestamp(float(dt))
                     events[event] = dt
     return events
+
+def read_all_events():
+    f = open(datafile, 'r')
+    r = f.read().split('\n')
+    f.close()
+
+    events = {}
+    for line in r:
+        if len(line) > 1:
+            raw = line.split(':', 1)[1].split(chr(23))
+            for i in range(2, len(raw)-1):
+                event, dt = raw[i].split(chr(3))
+                dt = datetime.fromtimestamp(float(dt))
+                events[event] = dt
+    return events

@@ -6,26 +6,24 @@ from record import modify, read_back
 from classes import Global
 
 class Event:
-    def __init__(self, parent, name: str, date: datetime, command: (...), number: int):
+    def __init__(self, parent, name: str, date: datetime, command: (...), number: int, deletable):
         self.command = command
         element = ttk.Frame(parent, relief='raised', borderwidth=1)
         element.grid_rowconfigure(0, weight=1)
         element.grid_columnconfigure(0, weight=2)
         element.grid_columnconfigure(0, weight=1)
         labels = ttk.Frame(element)
-        ttk.Label(labels, text=name, justify='left', borderwidth=0, font=tkFont.Font(family="Arial", size=12, weight='bold')).pack(pady=0, ipady=0, expand=True, fill='x')
+        ttk.Label(labels, text=name, justify='left', borderwidth=0, font=tkFont.Font(family="Arial", size=12, weight='bold'), wraplength=250).pack(pady=0, ipady=0, expand=True, fill='x')
         if date.timestamp() != 0:
             ttk.Label(labels, text=str(date), justify='left', font=tkFont.Font(family="Arial", size=8), borderwidth=0).pack(pady=0, ipady=0, expand=True, fill='x')
         labels.grid(column=0, row=0, sticky='ew', padx = 4)
-        if date.timestamp() != 0:
+        if deletable:
             ttk.Button(element, bootstyle='danger', text="Delete", command = lambda: command()).grid(column=1, row=0, sticky='e', padx = 4, pady=4)
-        else:
-            ttk.Button(element, bootstyle='danger', text="Delete", command = lambda: command(), state='disabled').grid(column=1, row=0, sticky='e', padx = 4, pady=4)
         element.grid(padx = 4, pady = (4, 0), row=number, column=0, sticky='ew')
         self.destroy = lambda: element.destroy()
 
 class EventList:
-    def __init__(self, parent, events: list[str], dates: list[datetime], all_events: Global):
+    def __init__(self, parent, events: list[str], dates: list[datetime], all_events: Global, deletable = True):
         self.events = events
         self.dates = dates
         self.frame = ttk.Frame(parent)
@@ -33,17 +31,20 @@ class EventList:
         self.ev = all_events
         number = 0
         self._evs = []
+        self.deletable = deletable
         for i in range(len(events)):
-            self._evs.append(Event(self.frame, events[i], dates[i], lambda: self.delete(i), number))
+            self._evs.append(Event(self.frame, events[i], dates[i], lambda: self.delete(i), number, deletable))
             number += 1
+        if len(self._evs) == 0:
+            self._evs.append(Event(self.frame, 'No activities', datetime.fromtimestamp(0), lambda a: (), 0, False))
     def update(self):
         number = 0
         newevs = []
         for jj in range(len(self.dates)):
-            newevs.append(Event(self.frame, self.events[jj], self.dates[jj], lambda: self.delete(jj), number))
+            newevs.append(Event(self.frame, self.events[jj], self.dates[jj], lambda: self.delete(jj), number, self.deletable))
             number += 1
         if len(newevs) == 0:
-            newevs.append(Event(self.frame, 'No activities', datetime.fromtimestamp(0), lambda a: (), 0))
+            newevs.append(Event(self.frame, 'No activities', datetime.fromtimestamp(0), lambda a: (), 0, False))
         for i in self._evs:
             i.destroy()
         self._evs = newevs
